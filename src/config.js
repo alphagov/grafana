@@ -16,7 +16,7 @@ function (Settings) {
      * Basic authentication requires special nginx or apache2 headers for cross origin comain to work
      * Check install documentation on github
      */
-    graphiteUrl: "http://"+window.location.hostname+":8080",
+    graphiteUrl: "https://graphite.production.alphagov.co.uk/",
 
     default_route: '/dashboard/file/default.json',
 
