@@ -5,7 +5,7 @@ require.config({
   baseUrl: 'app',
   // urlArgs: 'r=@REV@',
   paths: {
-    config:                   '../config',
+    config:                   ['../config', '../config.sample'],
     settings:                 'components/settings',
     kbn:                      'components/kbn',
 
@@ -22,6 +22,7 @@ require.config({
     datepicker:               '../vendor/angular/datepicker',
     bindonce:                 '../vendor/angular/bindonce',
     crypto:                   '../vendor/crypto.min',
+    spectrum:                 '../vendor/spectrum',
 
     underscore:               'components/underscore.extended',
     'underscore-src':         '../vendor/underscore',
@@ -44,10 +45,16 @@ require.config({
 
     modernizr:                '../vendor/modernizr-2.6.1',
     elasticjs:                '../vendor/elasticjs/elastic-angular-client',
+
+    'bootstrap-tagsinput':    '../vendor/tagsinput/bootstrap-tagsinput',
   },
   shim: {
     underscore: {
       exports: '_'
+    },
+
+    spectrum: {
+      deps: ['jquery']
     },
 
     crypto: {
@@ -99,6 +106,7 @@ require.config({
 
     elasticjs:              ['angular', '../vendor/elasticjs/elastic'],
 
+    'bootstrap-tagsinput':          ['jquery'],
   },
   waitSeconds: 60,
 });

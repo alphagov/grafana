@@ -4,7 +4,7 @@
     "company": "Coding Instinct AB"
   },
   "name": "grafana",
-  "version": "1.0.3",
+  "version": "1.4.0",
   "repository": {
     "type": "git",
     "url": "http://github.com/torkelo/grafana.git"
@@ -43,7 +43,15 @@
     "karma": "~0.10.9",
     "grunt-karma": "~0.6.2",
     "karma-mocha": "~0.1.1",
-    "karma-expect": "~1.0.0"
+    "karma-expect": "~1.0.0",
+    "grunt-cli": "~0.1.13"
+  },
+  "engines": {
+    "node": "0.10.x",
+    "npm": "1.2.x"
+  },
+  "scripts": {
+    "test": "grunt"
   },
   "license": "Apache License"
 }

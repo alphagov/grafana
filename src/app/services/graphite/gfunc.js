@@ -77,6 +77,13 @@ function (_) {
   });
 
   addFuncDef({
+    name: "stacked",
+    category: categories.Special,
+    params: [ { name: "stack", type: 'string' } ],
+    defaultParams: ['stacked']
+  });
+
+  addFuncDef({
     name: "groupByNode",
     category: categories.Special,
     params: [
@@ -97,8 +104,13 @@ function (_) {
   addFuncDef({
     name: 'aliasByNode',
     category: categories.Special,
-    params: [ { name: "node", type: "select", options: [1,2,3,4,5,6,7,8,9,10,12] } ],
+    params: [ { name: "node", type: "select", options: [0,1,2,3,4,5,6,7,8,9,10,12] } ],
     defaultParams: [3]
+  });
+
+  addFuncDef({
+    name: 'sortByName',
+    category: categories.Special
   });
 
   addFuncDef({
@@ -126,10 +138,22 @@ function (_) {
   });
 
   addFuncDef({
+    name: 'cactiStyle',
+    category: categories.Special,
+  });
+
+  addFuncDef({
     name: 'scale',
     category: categories.Transform,
     params: [ { name: "factor", type: "int", } ],
     defaultParams: [1]
+  });
+
+  addFuncDef({
+    name: 'offset',
+    category: categories.Transform,
+    params: [ { name: "amount", type: "int", } ],
+    defaultParams: [10]
   });
 
   addFuncDef({
@@ -138,8 +162,15 @@ function (_) {
   });
 
   addFuncDef({
-    name: 'derivate',
+    name: 'derivative',
     category: categories.Transform,
+  });
+
+  addFuncDef({
+    name: 'nonNegativeDerivative',
+    category: categories.Transform,
+    params: [ { name: "max value or 0", type: "int", } ],
+    defaultParams: [0]
   });
 
   addFuncDef({
@@ -152,8 +183,8 @@ function (_) {
   addFuncDef({
     name: 'summarize',
     category: categories.Transform,
-    params: [ { name: "interval", type: "string" }],
-    defaultParams: ['1h']
+    params: [ { name: "interval", type: "string" }, { name: "func", type: "select", options: ['sum', 'avg', 'min', 'max', 'last'] }],
+    defaultParams: ['1h', 'sum']
   });
 
   addFuncDef({
@@ -173,6 +204,48 @@ function (_) {
     category: categories.Filter,
     params: [ { name: "n", type: "int", } ],
     defaultParams: [25]
+  });
+
+  addFuncDef({
+    name: "exclude",
+    category: categories.Filter,
+    params: [ { name: "exclude", type: 'string' } ],
+    defaultParams: ['exclude']
+  });
+
+  addFuncDef({
+    name: 'highestCurrent',
+    category: categories.Filter,
+    params: [ { name: "count", type: "int" } ],
+    defaultParams: [5]
+  });
+
+  addFuncDef({
+    name: 'lowestCurrent',
+    category: categories.Filter,
+    params: [ { name: "count", type: "int" } ],
+    defaultParams: [5] 
+  }); 
+
+  addFuncDef({
+    name: 'movingAverage',
+    category: categories.Filter,
+    params: [ { name: "window size", type: "int" } ],
+    defaultParams: [10]
+  });
+
+  addFuncDef({
+    name: 'highestAverage',
+    category: categories.Filter,
+    params: [ { name: "count", type: "int" } ],
+    defaultParams: [5]
+  }); 
+
+  addFuncDef({
+    name: 'lowestAverage',
+    category: categories.Filter,
+    params: [ { name: "count", type: "int" } ],
+    defaultParams: [5]
   });
 
   _.each(categories, function(funcList, catName) {

@@ -14,7 +14,7 @@ function (angular, app, _) {
   var module = angular.module('kibana.panels.filtering', []);
   app.useModule(module);
 
-  module.controller('filtering', function($scope, filterSrv, graphiteSrv, $rootScope, dashboard) {
+  module.controller('filtering', function($scope, filterSrv, datasourceSrv, $rootScope, dashboard) {
 
     $scope.panelMeta = {
       status  : "Stable",
@@ -35,14 +35,25 @@ function (angular, app, _) {
     };
 
     $scope.applyFilter = function(filter) {
-      graphiteSrv.metricFindQuery(filter.query)
+      datasourceSrv.default.metricFindQuery(filter.query)
         .then(function (results) {
           filter.editing=undefined;
           filter.options = _.map(results, function(node) {
             return { text: node.text, value: node.text };
           });
+
           if (filter.includeAll) {
-            filter.options.unshift({text: 'All', value: '*'});
+            if(endsWithWildcard(filter.query)) {
+              filter.options.unshift({text: 'All', value: '*'});
+            }
+            else {
+              var allExpr = '{';
+              _.each(filter.options, function(option) {
+                allExpr += option.text + ',';
+              });
+              allExpr = allExpr.substring(0, allExpr.length - 1) + '}';
+              filter.options.unshift({text: 'All', value: allExpr});
+            }
           }
 
           filterSrv.filterOptionSelected(filter, filter.options[0]);
@@ -65,6 +76,14 @@ function (angular, app, _) {
     $scope.render = function() {
       $rootScope.$broadcast('render');
     };
+
+    function endsWithWildcard(query) {
+      if (query.length === 0) {
+        return false;
+      }
+
+      return query[query.length - 1] === '*';
+    }
 
   });
 });

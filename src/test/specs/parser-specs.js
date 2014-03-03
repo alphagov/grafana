@@ -1,5 +1,5 @@
 define([
-  'app/services/graphite/parser'
+  'services/graphite/parser'
 ], function(Parser) {
 
   describe('when parsing', function() {
@@ -11,6 +11,17 @@ define([
       expect(rootNode.type).to.be('metric');
       expect(rootNode.segments.length).to.be(5);
       expect(rootNode.segments[0].value).to.be('metric');
+    });
+
+    it('simple metric expression with numbers in segments', function() {
+      var parser = new Parser('metric.10.15_20.5');
+      var rootNode = parser.getAst();
+
+      expect(rootNode.type).to.be('metric');
+      expect(rootNode.segments.length).to.be(4);
+      expect(rootNode.segments[1].value).to.be('10');
+      expect(rootNode.segments[2].value).to.be('15_20');
+      expect(rootNode.segments[3].value).to.be('5');
     });
 
     it('simple metric expression with curly braces', function() {
@@ -36,6 +47,14 @@ define([
       var rootNode = parser.getAst();
       expect(rootNode.type).to.be('function');
       expect(rootNode.params.length).to.be(1);
+    });
+
+    it('simple function2', function() {
+      var parser = new Parser('offset(test.metric, -100)');
+      var rootNode = parser.getAst();
+      expect(rootNode.type).to.be('function');
+      expect(rootNode.params[0].type).to.be('metric');
+      expect(rootNode.params[1].type).to.be('number');
     });
 
     it('simple function with string arg', function() {
@@ -113,6 +132,13 @@ define([
       expect(rootNode.message).to.be('Unclosed string parameter');
       expect(rootNode.pos).to.be(11);
     });
+
+    it('handle issue #69', function() {
+      var parser = new Parser('cactiStyle(offset(scale(net.192-168-1-1.192-168-1-9.ping_value.*,0.001),-100))');
+      var rootNode = parser.getAst();
+      expect(rootNode.type).to.be('function');
+    });
+
 
   });
 

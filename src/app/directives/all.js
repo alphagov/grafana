@@ -8,5 +8,9 @@ define([
   './ngModelOnBlur',
   './tip',
   './confirmClick',
-  './configModal'
+  './configModal',
+  './spectrumPicker',
+  './grafanaGraph',
+  './bootstrap-tagsinput',
+  './bodyClass'
 ], function () {});

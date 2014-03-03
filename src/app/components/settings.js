@@ -13,11 +13,18 @@ function (_, crypto) {
      * @type {Object}
      */
     var defaults = {
-      elasticsearch     : "http://"+window.location.hostname+":9200",
-      graphiteUrl       : "http://"+window.location.hostname+":8080",
-      panel_names       : [],
-      default_route     : '/dashboard/file/default.json',
-      grafana_index     : 'grafana-dash'
+      elasticsearch                 : "http://"+window.location.hostname+":9200",
+      datasources                   : {
+        default: {
+          url: "http://"+window.location.hostname+":8080",
+          default: true
+        }
+      },
+      panel_names                   : [],
+      default_route                 : '/dashboard/file/default.json',
+      grafana_index                 : 'grafana-dash',
+      elasticsearch_all_disabled    : false,
+      timezoneOffset                : null,
     };
 
     // This initializes a new hash on purpose, to avoid adding parameters to
@@ -27,15 +34,39 @@ function (_, crypto) {
       settings[key] = typeof options[key] !== 'undefined' ? options[key]  : defaults[key];
     });
 
-    var url = settings.graphiteUrl;
-    var passwordAt = url.indexOf('@');
-    if (passwordAt > 0) {
-      var userStart = url.indexOf('//') + 2;
-      var userAndPassword = url.substring(userStart, passwordAt);
-      var bytes = crypto.charenc.Binary.stringToBytes(userAndPassword);
-      var base64 = crypto.util.bytesToBase64(bytes);
-      settings.graphiteBasicAuth = base64;
+    var parseBasicAuth = function(datasource) {
+      var passwordEnd = datasource.url.indexOf('@');
+      if (passwordEnd > 0) {
+        var userStart = datasource.url.indexOf('//') + 2;
+        var userAndPassword = datasource.url.substring(userStart, passwordEnd);
+        var bytes = crypto.charenc.Binary.stringToBytes(userAndPassword);
+        datasource.basicAuth = crypto.util.bytesToBase64(bytes);
+
+        var urlHead = datasource.url.substring(0, userStart);
+        datasource.url = urlHead + datasource.url.substring(passwordEnd + 1);
+      }
+
+      return datasource;
+    };
+
+    if (options.graphiteUrl) {
+      settings.datasources = {
+        graphite: {
+          type: 'graphite',
+          url: options.graphiteUrl,
+          default: true
+        }
+      };
     }
+
+    _.each(settings.datasources, function(datasource, key) {
+      datasource.name = key;
+      parseBasicAuth(datasource);
+    });
+
+    var elasticParsed = parseBasicAuth({ url: settings.elasticsearch });
+    settings.elasticsearchBasicAuth = elasticParsed.basicAuth;
+    settings.elasticsearch = elasticParsed.url;
 
     return settings;
   };

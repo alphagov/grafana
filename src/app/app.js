@@ -12,7 +12,7 @@ define([
   'angular-strap',
   'angular-dragdrop',
   'extend-jquery',
-  'bindonce',
+  'bindonce'
 ],
 function (angular, $, _, appLevelRequire) {
 
@@ -27,7 +27,7 @@ function (angular, $, _, appLevelRequire) {
     register_fns = {};
 
   // This stores the Kibana revision number, @REV@ is replaced by grunt.
-  app.constant('kbnVersion',"@REV@");
+  app.constant('grafanaVersion',"@grafanaVersion@");
 
   // Use this for cache busting partials
   app.constant('cacheBust',"cache-bust="+Date.now());

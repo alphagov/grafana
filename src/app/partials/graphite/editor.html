@@ -1,4 +1,5 @@
-<div class="editor-row">
+
+<div class="editor-row" style="margin-top: 10px;">
 
 	<div  ng-repeat="target in panel.targets"
         class="grafana-target"
@@ -9,9 +10,9 @@
     <div class="grafana-target-inner-wrapper">
       <div class="grafana-target-inner">
         <ul class="grafana-target-controls">
-          <li ng-if="target.yaxis">
-            <a class="pointer" ng-click="setYAxis()">
-              y&sup2;
+          <li ng-show="parserError">
+            <a bs-tooltip="parserError" style="color: rgb(229, 189, 28)" role="menuitem">
+              <i class="icon-warning-sign"></i>
             </a>
           </li>
           <li>
@@ -42,24 +43,20 @@
         </ul>
 
         <ul class="grafana-target-controls-left">
-          <li ng-hide="parserError">
+          <li>
             <a  class="grafana-target-segment"
                 ng-click="target.hide = !target.hide; get_data();"
                 role="menuitem">
               <i class="icon-eye-open"></i>
             </a>
           </li>
-          <li ng-show="parserError">
-            <a class="grafana-target-segment" bs-tooltip="parserError" style="color: rgb(229, 189, 28)" ng-click="hideit()" role="menuitem">
-              <i class="icon-warning-sign"></i>
-            </a>
-          </li>
         </ul>
 
         <input  type="text"
-                class="grafana-target-text-input"
+                class="grafana-target-text-input span12"
                 ng-model="target.target"
                 focus-me="showTextEditor"
+                spellcheck='false'
                 ng-model-onblur ng-change="targetTextChanged()"
                 ng-show="showTextEditor" />
 
@@ -72,14 +69,14 @@
                 focus-me="segment.focus"
                 ng-bind-html-unsafe="segment.html">
             </a>
-            <ul class="dropdown-menu scrollable" role="menu">
+            <ul class="dropdown-menu scrollable grafana-segment-dropdown-menu" role="menu">
               <li ng-repeat="altSegment in altSegments" role="menuitem">
                 <a href="javascript:void(0)" tabindex="1" ng-click="setSegment($index, $parent.$index)" ng-bind-html-unsafe="altSegment.html"></a>
               </li>
             </ul>
           </li>
           <li ng-repeat="func in functions">
-            <a class="grafana-target-segment grafana-target-function dropdown-toggle" bs-popover="'app/panels/graphite/funcEditor.html'" data-placement="bottom">
+            <a class="grafana-target-segment grafana-target-function dropdown-toggle" bs-popover="'app/partials/graphite/funcEditor.html'" data-placement="bottom">
               {{func.text}}
             </a>
           </li>
@@ -115,6 +112,3 @@
   </div>
 </div>
 
-<div class="editor-row" style="margin-top: 20px" ng-show="editor.index == 1">
-  <button class="btn btn-success pull-right" ng-click="add_target(panel.target)">Add target</button>
-</div>

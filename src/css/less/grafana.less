@@ -1,21 +1,33 @@
+@import "submenu.less";
+@import "bootstrap-tagsinput.less";
 
-.navbar-static-top {
-  border-bottom: 1px solid black;
-}
-
-.grafana-dashboard-hide-controls {
+.hide-controls {
   padding: 0;
   .grafana-row {
     display: none;
   }
+  .submenu-controls {
+    display: none;
+  }
 }
+
+// Search
 
 .grafana-search-panel {
   padding: 6px 10px;
-  input {
-    width: 100%;
-    .box-sizing(border-box);
-    padding: 15px;
+
+  .search-field-wrapper {
+    input {
+      width: 100%;
+    }
+    button {
+      margin: 0 2px 0 0;
+    }
+    > span {
+      display: block;
+      overflow: hidden;
+      padding-right: 25px;
+    }
   }
 
   .selected td, tr.selected:nth-child(odd)>td {
@@ -26,19 +38,20 @@
       color: white;
     }
   }
+
+  .selected-tag .label-tag {
+    background-color: @blue;
+  }
 }
 
-.filter-pulldown {
-  background: #292929;
-}
-
-.top-row-close {
-  border-right: 1px solid #202020;
-}
-.top-row-open {
-  float: left;
-  padding: 0px;
-  background: none;
+.search-tagview-switch {
+  position: absolute;
+  top: 15px;
+  right: 180px;
+  color: darken(@linkColor, 30%);
+  &.active {
+    color: @linkColor;
+  }
 }
 
 .row-button {
@@ -103,13 +116,18 @@
   position: fixed;
   left: 0px;
   right: 0px;
-  top: 49px;
-  bottom: 0px;
-  outline: 1px solid #101214;
-  border-top: 1px solid #3e444c;
+  top: 54px;
+  height: 100%;
   padding: 0 10px;
   background: @kibanaPanelBackground;
+  overflow-y: scroll;
+  height: 100%;
+
+  .panel-content {
+    padding-bottom: 130px;
+  }
 }
+
 
 .dashboard-fullscreen .container-fluid.main {
   height: 0px;
@@ -134,15 +152,8 @@
   padding: 0 4px;
   i {
     position: relative;
-    top: 3px;
+    top: 2px;
   }
-}
-
-.histogram-legend-dot {
-  display:inline-block;
-  height:10px;
-  width:10px;
-  border-radius:5px;
 }
 
 .histogram-legend-item {
@@ -165,7 +176,7 @@
   }
   .close {
     margin-right: 5px;
-    color: white;
+    color: @linkColor;
     opacity: 0.7;
     text-shadow: none;
   }
@@ -179,13 +190,14 @@
   min-height: 250px;
   margin-left: -10px;
   margin-right: -10px;
-  border-top: 1px solid black;
+  background-color: @fullEditBackground;
+  border-top: 1px solid @fullEditBorder;
 
   .tabs {
     .nav-tabs {
       margin: 0;
-      background: @grayDark;
-      border-top: 1px solid #555;
+      background: @fullEditTabsBackground;
+      border-top: 1px solid @fullEditTabsBorder;
     }
 
     .tab-content {
@@ -205,23 +217,19 @@
   }
 }
 
-/* Graphite Target Editor */
-@grafanaTargetColor:       #c8c8c8;
-@grafanaTargetColorHide:   darken(#c8c8c8, 25%);
-
-.grafana-target {
+.grafana-target:last-child {
+  border-bottom: 1px solid @grafanaTargetBorder;
 }
 
 .grafana-target-inner-wrapper {
-  //border-top: 1px solid #444444;
   width: 100%;
 }
 
 .grafana-target-inner {
-  border-top: 2px solid black;
-  border-left: 2px solid black;
-  border-right: 2px solid black;
-  background: @grayDark;
+  border-top: 1px solid @grafanaTargetBorder;
+  border-left: 1px solid @grafanaTargetBorder;
+  border-right: 1px solid @grafanaTargetBorder;
+  background: @grafanaTargetBackground;
   width: 100%;
 }
 
@@ -241,11 +249,16 @@
   }
 }
 
+// fix for fixed positioned panel & scrolling
+.grafana-segment-dropdown-menu {
+  margin-bottom: 70px;
+}
+
 .grafana-target-segment {
   padding: 5px 7px;
   display: inline-block;
   font-weight: normal;
-  border-right: 2px solid #050505;
+  border-right: 1px solid @grafanaTargetSegmentBorder;
   color: @grafanaTargetColor;
   display: inline-block;
 
@@ -257,14 +270,14 @@
     text-decoration: none;
   }
   &:hover {
-    background: #444;
+    background: @grafanaTargetFuncBackground;
   }
 }
 
 .grafana-target-function {
-  background: #444;
+  background: @grafanaTargetFuncBackground;
   &:hover {
-    background: #555;
+    background: @grafanaTargetFuncHightlight;
   }
 }
 
@@ -305,13 +318,30 @@
 
 input[type=text].grafana-target-text-input {
   padding: 5px 7px;
-  border: 1px solid #050505;
+  border: none;
   margin: 0px;
   background: transparent;
-  width: 80%;
   float: left;
   color: @grafanaTargetColor;
   border-radius: 0;
+}
+
+input[type=text].grafana-target-segment-input {
+  border: none;
+  border-right: 1px solid @grafanaTargetSegmentBorder;
+  margin: 0px;
+  border-radius: 0;
+  height: 22px;
+  line-height: 22px;
+}
+
+select.grafana-target-segment-input {
+  border: none;
+  border-right: 1px solid @grafanaTargetSegmentBorder;
+  margin: 0px;
+  border-radius: 0;
+  height: 30px;
+  line-height: 30px;
 }
 
 .grafana-target .dropdown {
@@ -336,9 +366,9 @@ input[type=text].func-param {
 .grafana-func-editor {
   min-width: 140px;
   .grafana-func-editor-header {
-    background: #41474c;
+    background: @grafanaTargetFuncHightlight;
     text-align: center;
-    border-bottom: 1px solid #353a3e;
+    border-bottom: 1px solid @grafanaTargetFuncBackground;
     padding: 3px 5px;
     white-space: nowrap;
   }
@@ -393,4 +423,58 @@ input[type=text].func-param {
   border: 1px solid #1f1f1f;
   border-top: 1px solid #666666;
   border-left: 1px solid #666666;
+}
+
+
+// SPECTRUM CSS overrides
+
+.sp-replacer {
+  background: inherit;
+  border: none;
+  color: inherit;
+}
+
+.sp-replacer:hover, .sp-replacer.sp-active {
+  border-color: inherit;
+  color: inherit;
+}
+
+.sp-container {
+  border-radius: 0;
+  background-color: @heroUnitBackground;
+  border: none;
+  padding: 0;
+}
+
+.sp-palette-container, .sp-picker-container {
+  border: none;
+}
+
+.sp-dd {
+  display: none;
+}
+
+.sp-preview {
+  position: relative;
+  width: 15px;
+  height: 15px;
+  border: none;
+  margin-right: 5px;
+  float: left;
+  z-index: 0;
+}
+
+.datapoints-warning {
+  pointer: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 10;
+  margin-top: -50px;
+  margin-left: -100px;
+  width: 200px;
+  text-align: center;
+  cursor: auto;
+  //background: rgba(50,50,50,0.8);
+  padding: 10px;
 }

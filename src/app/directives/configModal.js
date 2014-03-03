@@ -1,49 +1,44 @@
 define([
   'angular',
-  'underscore'
+  'underscore',
+  'jquery'
 ],
-function (angular,_) {
+function (angular, _, $) {
   'use strict';
 
   angular
     .module('kibana.directives')
-    .directive('configModal', function($modal,$q) {
+    .directive('configModal', function($modal, $q, $timeout) {
       return {
         restrict: 'A',
-        link: function(scope, elem) {
+        link: function(scope, elem, attrs) {
+          var partial = attrs.configModal;
+          var id = '#' + partial.replace('.html', '').replace(/[\/|\.|:]/g, '-') + '-' + scope.$id;
 
-          // create a new modal. Can't reuse one modal unforunately as the directive will not
-          // re-render on show.
-          elem.bind('click',function(){
-            if (scope.openConfigureModal) {
-              scope.openConfigureModal();
-              scope.$apply();
+          elem.bind('click',function() {
+            if ($(id).length) {
+              elem.attr('data-target', id).attr('data-toggle', 'modal');
               return;
             }
 
-            // Create a temp scope so we can discard changes to it if needed
-            var tmpScope = scope.$new();
-            tmpScope.panel = angular.copy(scope.panel);
-
-            tmpScope.editSave = function(panel) {
-              // Correctly set the top level properties of the panel object
-              _.each(panel,function(v,k) {
-                scope.panel[k] = panel[k];
-              });
-            };
-
             var panelModal = $modal({
-              template: './app/partials/paneleditor.html',
+              template: partial,
               persist: true,
               show: false,
-              scope: tmpScope,
+              scope: scope,
               keyboard: false
             });
 
-            // and show it
             $q.when(panelModal).then(function(modalEl) {
-              modalEl.modal('show');
+              elem.attr('data-target', id).attr('data-toggle', 'modal');
+
+              $timeout(function () {
+                if (!modalEl.data('modal').isShown) {
+                  modalEl.modal('show');
+                }
+              }, 50);
             });
+
             scope.$apply();
           });
         }

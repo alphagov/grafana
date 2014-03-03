@@ -34,54 +34,43 @@ function (angular, app, $, _, kbn, moment, timeSeries) {
   var module = angular.module('kibana.panels.graphite', []);
   app.useModule(module);
 
-  module.controller('graphite', function($scope, $rootScope, filterSrv, graphiteSrv, $timeout) {
+  module.controller('graphite', function($scope, $rootScope, filterSrv, datasourceSrv, $timeout, annotationsSrv) {
 
     $scope.panelMeta = {
       modals : [],
       editorTabs: [],
-
       fullEditorTabs : [
         {
-          title:'Targets',
-          src:'app/panels/graphite/editor.html'
+          title: 'General',
+          src:'app/partials/panelgeneral.html'
         },
         {
-          title:'Axis labels',
+          title: 'Metrics',
+          src:'app/partials/metrics.html'
+        },
+        {
+          title:'Axes & Grid',
           src:'app/panels/graphite/axisEditor.html'
         },
         {
-          title:'Style',
+          title:'Display Styles',
           src:'app/panels/graphite/styleEditor.html'
         }
       ],
-
-      menuItems: [
-        { text: 'View fullscreen', click: 'toggleFullscreen()' },
-        { text: 'Edit',            click: 'openConfigureModal()' },
-        { text: 'Duplicate',       click: 'duplicate()' },
-        { text: 'Span', submenu: [
-          { text: '1', click: 'updateColumnSpan(1)' },
-          { text: '2', click: 'updateColumnSpan(2)' },
-          { text: '3', click: 'updateColumnSpan(3)' },
-          { text: '4', click: 'updateColumnSpan(4)' },
-          { text: '5', click: 'updateColumnSpan(5)' },
-          { text: '6', click: 'updateColumnSpan(6)' },
-          { text: '7', click: 'updateColumnSpan(7)' },
-          { text: '8', click: 'updateColumnSpan(8)' },
-          { text: '9', click: 'updateColumnSpan(9)' },
-          { text: '10', click: 'updateColumnSpan(10)' },
-          { text: '11', click: 'updateColumnSpan(11)' },
-          { text: '12', click: 'updateColumnSpan(12)' },
-        ]},
-        { text: 'Remove',          click: 'remove_panel_from_row(row, panel)' }
-      ],
-
-      status  : "Unstable",
-      description : "Graphite graphing panel <br /><br />"
+      fullscreenEdit: true,
+      fullscreenView: true,
+      description : "Graphing"
     };
 
     // Set and populate defaults
     var _d = {
+
+      datasource: null,
+
+      /** @scratch /panels/histogram/3
+       * renderer:: sets client side (flot) or native graphite png renderer (png)
+       */
+      renderer: 'flot',
       /** @scratch /panels/histogram/3
        * x-axis:: Show the x-axis
        */
@@ -95,53 +84,32 @@ function (angular, app, $, _, kbn, moment, timeSeries) {
        */
       scale         : 1,
       /** @scratch /panels/histogram/3
-       * y_format:: 'none','bytes','short '
+       * y_formats :: 'none','bytes','short', 'ms'
        */
-      y_format    : 'none',
-      y2_format   : 'none',
+      y_formats    : ['short', 'short'],
       /** @scratch /panels/histogram/5
        * grid object:: Min and max y-axis values
        * grid.min::: Minimum y-axis value
-       * grid.max::: Maximum y-axis value
+       * grid.ma1::: Maximum y-axis value
        */
       grid          : {
         max: null,
-        min: 0
+        min: 0,
+        threshold1: null,
+        threshold2: null,
+        threshold1Color: 'rgba(216, 200, 27, 0.27)',
+        threshold2Color: 'rgba(234, 112, 112, 0.22)'
       },
-      /** @scratch /panels/histogram/3
-       * ==== Annotations
-       * annotate object:: A query can be specified, the results of which will be displayed as markers on
-       * the chart. For example, for noting code deploys.
-       * annotate.enable::: Should annotations, aka markers, be shown?
-       * annotate.query::: Lucene query_string syntax query to use for markers.
-       * annotate.size::: Max number of markers to show
-       * annotate.field::: Field from documents to show
-       * annotate.sort::: Sort array in format [field,order], For example [`@timestamp',`desc']
-       */
+
       annotate      : {
         enable      : false,
-        query       : "*",
-        size        : 20,
-        field       : '_type',
-        sort        : ['_score','desc']
       },
-      /** @scratch /panels/histogram/3
-       * ==== Interval options
-       * auto_int:: Automatically scale intervals?
-       */
-      auto_int      : true,
+
       /** @scratch /panels/histogram/3
        * resolution:: If auto_int is true, shoot for this many bars.
        */
       resolution    : 100,
-      /** @scratch /panels/histogram/3
-       * interval:: If auto_int is set to false, use this as the interval.
-       */
-      interval      : '5m',
-      /** @scratch /panels/histogram/3
-       * interval:: Array of possible intervals in the *View* selector. Example [`auto',`1s',`5m',`3h']
-       */
-      intervals     : ['auto','1s','1m','5m','10m','30m','1h','3h','12h','1d','1w','1y'],
+
       /** @scratch /panels/histogram/3
        * ==== Drawing options
        * lines:: Show line chart
@@ -170,36 +138,21 @@ function (angular, app, $, _, kbn, moment, timeSeries) {
       /** @scratch /panels/histogram/3
        * stack:: Stack multiple series
        */
-      stack         : true,
-      /** @scratch /panels/histogram/3
-       * spyable:: Show inspect icon
-       */
-      spyable       : true,
-      /** @scratch /panels/histogram/3
-       * zoomlinks:: Show `Zoom Out' link
-       */
-      zoomlinks     : false,
-      /** @scratch /panels/histogram/3
-       * options:: Show quick view options section
-       */
-      options       : false,
+      stack         : false,
       /** @scratch /panels/histogram/3
        * legend:: Display the legond
        */
-      legend        : true,
-      /** @scratch /panels/histogram/3
-       * interactive:: Enable click-and-drag to zoom functionality
-       */
-      interactive   : true,
-      /** @scratch /panels/histogram/3
-       * legend_counts:: Show counts in legend
-       */
-      legend_counts : true,
+      legend: {
+        show: true, // disable/enable legend
+        values: false, // disable/enable legend values
+        min: false,
+        max: false,
+        current: false,
+        total: false,
+        avg: false
+      },
       /** @scratch /panels/histogram/3
        * ==== Transformations
-       * timezone:: Correct for browser timezone?. Valid values: browser, utc
-       */
-      timezone      : 'browser', // browser or utc
       /** @scratch /panels/histogram/3
        * percentage:: Show the y-axis as a percentage of the axis total. Only makes sense for multiple
        * queries
@@ -211,6 +164,7 @@ function (angular, app, $, _, kbn, moment, timeSeries) {
       zerofill      : true,
 
       nullPointMode : 'connected',
+
       steppedLine: false,
 
       tooltip       : {
@@ -225,47 +179,47 @@ function (angular, app, $, _, kbn, moment, timeSeries) {
     };
 
     _.defaults($scope.panel,_d);
-    _.defaults($scope.panel.tooltip,_d.tooltip);
-    _.defaults($scope.panel.annotate,_d.annotate);
-    _.defaults($scope.panel.grid,_d.grid);
+    _.defaults($scope.panel.tooltip, _d.tooltip);
+    _.defaults($scope.panel.annotate, _d.annotate);
+    _.defaults($scope.panel.grid, _d.grid);
 
+    // backward compatible stuff
+    if (_.isBoolean($scope.panel.legend)) {
+      $scope.panel.legend = { show: $scope.panel.legend };
+      _.defaults($scope.panel.legend, _d.legend);
+    }
+
+    if ($scope.panel.y_format) {
+      $scope.panel.y_formats[0] = $scope.panel.y_format;
+      delete $scope.panel.y_format;
+    }
+    if ($scope.panel.y2_format) {
+      $scope.panel.y_formats[1] = $scope.panel.y2_format;
+      delete $scope.panel.y2_format;
+    }
 
     $scope.init = function() {
+      $scope.initPanel($scope);
 
-      // Hide view options by default
       $scope.fullscreen = false;
-      $scope.options = false;
-      $scope.editor = {index: 1};
-      $scope.editorTabs = _.union(['General'],_.pluck($scope.panelMeta.fullEditorTabs,'title'));
+      $scope.editor = { index: 1 };
+      $scope.editorTabs = _.pluck($scope.panelMeta.fullEditorTabs,'title');
       $scope.hiddenSeries = {};
-      // Always show the query if an alias isn't set. Users can set an alias if the query is too
-      // long
-      $scope.panel.tooltip.query_as_alias = true;
+
+      $scope.datasources = datasourceSrv.listOptions();
+      $scope.setDatasource($scope.panel.datasource);
+    };
+
+    $scope.setDatasource = function(datasource) {
+      $scope.panel.datasource = datasource;
+      $scope.datasource = datasourceSrv.get(datasource);
+
+      if (!$scope.datasource) {
+        $scope.panel.error = "Cannot find datasource " + datasource;
+        return;
+      }
 
       $scope.get_data();
-
-    };
-
-    $scope.set_interval = function(interval) {
-      if(interval !== 'auto') {
-        $scope.panel.auto_int = false;
-        $scope.panel.interval = interval;
-      } else {
-        $scope.panel.auto_int = true;
-      }
-    };
-
-    $scope.typeAheadSource = function () {
-      return ["test", "asd", "testing2"];
-    };
-
-    $scope.remove_panel_from_row = function(row, panel) {
-      if ($scope.fullscreen) {
-        $rootScope.$emit('panel-fullscreen-exit');
-      }
-      else {
-        $scope.$parent.remove_panel_from_row(row, panel);
-      }
     };
 
     $scope.removeTarget = function (target) {
@@ -273,45 +227,20 @@ function (angular, app, $, _, kbn, moment, timeSeries) {
       $scope.get_data();
     };
 
-    $scope.interval_label = function(interval) {
-      return $scope.panel.auto_int && interval === $scope.panel.interval ? interval+" (auto)" : interval;
-    };
-
     $scope.updateTimeRange = function () {
-      var range = filterSrv.timeRange();
-      var interval = filterSrv.timeRange();
+      $scope.range = filterSrv.timeRange();
+      $scope.rangeUnparsed = filterSrv.timeRange(false);
+      $scope.resolution = ($(window).width() / ($scope.panel.span / 12)) / 2;
 
-      if ($scope.panel.auto_int) {
-        if (range) {
-          interval = kbn.secondsToHms(
-            kbn.calculate_interval(range.from, range.to, $scope.panel.resolution, 0) / 1000
-          );
-        }
+      $scope.interval = '10m';
+
+      if ($scope.range) {
+        $scope.interval = kbn.secondsToHms(
+          kbn.calculate_interval($scope.range.from, $scope.range.to, $scope.resolution, 0) / 1000
+        );
       }
-
-      $scope.interval = $scope.panel.interval = interval || '10m';
-      $scope.range = range;
     };
 
-    $scope.colors = [
-      "#7EB26D","#EAB839","#6ED0E0","#EF843C","#E24D42","#1F78C1","#BA43A9","#705DA0", //1
-      "#508642","#CCA300","#447EBC","#C15C17","#890F02","#0A437C","#6D1F62","#584477", //2
-      "#B7DBAB","#F4D598","#70DBED","#F9BA8F","#F29191","#82B5D8","#E5A8E2","#AEA2E0", //3
-      "#629E51","#E5AC0E","#64B0C8","#E0752D","#BF1B00","#0A50A1","#962D82","#614D93", //4
-      "#9AC48A","#F2C96D","#65C5DB","#F9934E","#EA6460","#5195CE","#D683CE","#806EB7", //5
-      "#3F6833","#967302","#2F575E","#99440A","#58140C","#052B51","#511749","#3F2B5B", //6
-      "#E0F9D7","#FCEACA","#CFFAFF","#F9E2D2","#FCE2DE","#BADFF4","#F9D9F9","#DEDAF7"  //7
-    ];
-
-    /**
-     * Fetch the data for a chunk of a queries results. Multiple segments occur when several indicies
-     * need to be consulted (like timestamped logstash indicies)
-     *
-     * The results of this function are stored on the scope's data property. This property will be an
-     * array of objects with the properties info, time_series, and hits. These objects are used in the
-     * render_panel function to create the historgram.
-     *
-     */
     $scope.get_data = function() {
       delete $scope.panel.error;
 
@@ -320,109 +249,89 @@ function (angular, app, $, _, kbn, moment, timeSeries) {
       $scope.updateTimeRange();
 
       var graphiteQuery = {
-        range: filterSrv.timeRange(false),
+        range: $scope.rangeUnparsed,
+        interval: $scope.interval,
         targets: $scope.panel.targets,
-        maxDataPoints: $scope.panel.span * 50
+        format: $scope.panel.renderer === 'png' ? 'png' : 'json',
+        maxDataPoints: $scope.resolution,
+        datasource: $scope.panel.datasource
       };
 
-      return graphiteSrv.query(graphiteQuery)
-        .then($scope.receiveGraphiteData)
+      $scope.annotationsPromise = annotationsSrv.getAnnotations($scope.rangeUnparsed);
+
+      return $scope.datasource.query(graphiteQuery)
+        .then($scope.dataHandler)
         .then(null, function(err) {
           $scope.panel.error = err.message || "Graphite HTTP Request Error";
         });
     };
 
-    $scope.receiveGraphiteData = function(results) {
+    $scope.dataHandler = function(results) {
       $scope.panelMeta.loading = false;
-
-      results = results.data;
       $scope.legend = [];
-      var data = [];
 
-      _.each(results, function(targetData) {
-        var alias = targetData.target;
-        var color = $scope.panel.aliasColors[alias] || $scope.colors[data.length];
-        var yaxis = $scope.panel.aliasYAxis[alias] || 1;
+      // png renderer returns just a url
+      if (_.isString(results)) {
+        $scope.render(results);
+        return;
+      }
 
-        var tsOpts = {
-          interval: $scope.interval,
-          start_date: $scope.range && $scope.range.from,
-          end_date: $scope.range && $scope.range.to,
-        };
+      $scope.datapointsWarning = false;
+      $scope.datapointsCount = 0;
+      $scope.datapointsOutside = false;
 
-        var time_series = new timeSeries.ZeroFilled(tsOpts);
+      var data = _.map(results.data, $scope.seriesHandler);
 
-        _.each(targetData.datapoints, function(valueArray) {
-          if (valueArray[0]) {
-            time_series.addValue(valueArray[1] * 1000, valueArray[0]);
-          }
+      $scope.datapointsWarning = $scope.datapointsCount || !$scope.datapointsOutside;
+
+      $scope.annotationsPromise
+        .then(function(annotations) {
+          data.annotations = annotations;
+          $scope.render(data);
+        }, function() {
+          $scope.render(data);
         });
+    };
 
-        var seriesInfo = {
-          alias: alias,
-          color:  color,
-          enable: true,
-          yaxis: yaxis,
-        };
+    $scope.seriesHandler = function(seriesData, index) {
+      var datapoints = seriesData.datapoints;
+      var alias = seriesData.target;
+      var color = $scope.panel.aliasColors[alias] || $scope.colors[index];
+      var yaxis = $scope.panel.aliasYAxis[alias] || 1;
 
-        $scope.legend.push(seriesInfo);
+      var seriesInfo = {
+        alias: alias,
+        color:  color,
+        enable: true,
+        yaxis: yaxis
+      };
 
-        data.push({
-          info: seriesInfo,
-          time_series: time_series,
-        });
+      $scope.legend.push(seriesInfo);
 
+      var series = new timeSeries.ZeroFilled({
+        datapoints: datapoints,
+        info: seriesInfo,
       });
 
-      $scope.render(data);
+      if (datapoints && datapoints.length > 0) {
+        var last = moment.utc(datapoints[datapoints.length - 1][1] * 1000);
+        var from = moment.utc($scope.range.from);
+        if (last - from < -10000) {
+          $scope.datapointsOutside = true;
+        }
+      }
+
+      $scope.datapointsCount += datapoints.length;
+
+      return series;
     };
 
     $scope.add_target = function() {
       $scope.panel.targets.push({target: ''});
     };
 
-    $scope.enterFullscreenMode = function(options) {
-      var docHeight = $(window).height();
-      var editHeight = Math.floor(docHeight * 0.3);
-      var fullscreenHeight = Math.floor(docHeight * 0.7);
-      var oldTimeRange = $scope.range;
-
-      $scope.height = options.edit ? editHeight : fullscreenHeight;
-      $scope.editMode = options.edit;
-
-      if (!$scope.fullscreen) {
-        var closeEditMode = $rootScope.$on('panel-fullscreen-exit', function() {
-          $scope.editMode = false;
-          $scope.fullscreen = false;
-          delete $scope.height;
-
-          closeEditMode();
-
-          $timeout(function() {
-            $scope.$emit('render');
-
-            if (oldTimeRange !== $scope.range) {
-              $scope.dashboard.refresh();
-            }
-          });
-        });
-      }
-
-      $(window).scrollTop(0);
-
-      $scope.fullscreen = true;
-      $rootScope.$emit('panel-fullscreen-enter');
-
-      $timeout($scope.render);
-    };
-
-    $scope.openConfigureModal = function() {
-      if ($scope.editMode) {
-        $rootScope.$emit('panel-fullscreen-exit');
-        return;
-      }
-
-      $scope.enterFullscreenMode({edit: true});
+    $scope.otherPanelInFullscreenMode = function() {
+      return $rootScope.fullscreen && !$scope.fullscreen;
     };
 
     $scope.render = function(data) {
@@ -433,36 +342,6 @@ function (angular, app, $, _, kbn, moment, timeSeries) {
       series.color = color;
       $scope.panel.aliasColors[series.alias] = series.color;
       $scope.render();
-    };
-
-    $scope.duplicate = function(addToRow) {
-      addToRow = addToRow || $scope.row;
-      var currentRowSpan = $scope.rowSpan(addToRow);
-      if (currentRowSpan <= 9) {
-        addToRow.panels.push(angular.copy($scope.panel));
-      }
-      else {
-        var rowsList = $scope.dashboard.current.rows;
-        var rowIndex = _.indexOf(rowsList, addToRow);
-        if (rowIndex === rowsList.length - 1) {
-          var newRow = angular.copy($scope.row);
-          newRow.panels = [];
-          $scope.dashboard.current.rows.push(newRow);
-          $scope.duplicate(newRow);
-        }
-        else {
-          $scope.duplicate(rowsList[rowIndex+1]);
-        }
-      }
-    };
-
-    $scope.toggleFullscreen = function() {
-      if ($scope.fullscreen && !$scope.editMode) {
-        $rootScope.$emit('panel-fullscreen-exit');
-        return;
-      }
-
-      $scope.enterFullscreenMode({edit: false});
     };
 
     $scope.toggleSeries = function(info) {
@@ -482,282 +361,13 @@ function (angular, app, $, _, kbn, moment, timeSeries) {
       $scope.render();
     };
 
-    $scope.updateColumnSpan = function(span) {
-      $scope.panel.span = span;
-      $timeout($scope.render);
+    $scope.toggleGridMinMax = function(key) {
+      $scope.panel.grid[key] = _.toggle($scope.panel.grid[key], null, 0);
+      $scope.render();
     };
 
   });
 
-  module.directive('histogramChart', function(filterSrv, $rootScope) {
-    return {
-      restrict: 'A',
-      template: '<div> </div>',
-      link: function(scope, elem) {
-        var data, plot;
-        var hiddenData = {};
-
-        scope.$on('refresh',function() {
-          if ($rootScope.fullscreen && !scope.fullscreen) {
-            return;
-          }
-
-          scope.get_data();
-        });
-
-        scope.$on('toggleLegend', function(e, alias) {
-          if (hiddenData[alias]) {
-            data.push(hiddenData[alias]);
-            delete hiddenData[alias];
-          }
-
-          render_panel();
-        });
-
-        // Receive render events
-        scope.$on('render',function(event, d) {
-          data = d || data;
-          render_panel();
-        });
-
-        // Re-render if the window is resized
-        angular.element(window).bind('resize', function() {
-          render_panel();
-        });
-
-        // Function for rendering panel
-        function render_panel() {
-          if (!data) {
-            return;
-          }
-
-          try {
-            elem.css({ height: scope.height || scope.panel.height || scope.row.height });
-          } catch(e) { return; }
-
-          _.each(data, function(series) {
-            series.label = series.info.alias;
-            series.color = series.info.color;
-          });
-
-          _.each(_.keys(scope.hiddenSeries), function(seriesAlias) {
-            var dataSeries = _.find(data, function(series) {
-              return series.info.alias === seriesAlias;
-            });
-            if (dataSeries) {
-              hiddenData[dataSeries.info.alias] = dataSeries;
-              data = _.without(data, dataSeries);
-            }
-          });
-
-          // Set barwidth based on specified interval
-          var barwidth = kbn.interval_to_ms(scope.panel.interval);
-
-          var stack = scope.panel.stack ? true : null;
-
-          // Populate element
-          var options = {
-            legend: { show: false },
-            series: {
-              stackpercent: scope.panel.stack ? scope.panel.percentage : false,
-              stack: scope.panel.percentage ? null : stack,
-              lines:  {
-                show: scope.panel.lines,
-                // Silly, but fixes bug in stacked percentages
-                fill: scope.panel.fill === 0 ? 0.001 : scope.panel.fill/10,
-                lineWidth: scope.panel.linewidth,
-                steps: scope.panel.steppedLine
-              },
-              bars:   {
-                show: scope.panel.bars,
-                fill: 1,
-                barWidth: barwidth/1.5,
-                zero: false,
-                lineWidth: 0
-              },
-              points: {
-                show: scope.panel.points,
-                fill: 1,
-                fillColor: false,
-                radius: scope.panel.pointradius
-              },
-              shadowSize: 1
-            },
-            yaxes: [],
-            xaxis: {
-              timezone: scope.panel.timezone,
-              show: scope.panel['x-axis'],
-              mode: "time",
-              min: _.isUndefined(scope.range.from) ? null : scope.range.from.getTime(),
-              max: _.isUndefined(scope.range.to) ? null : scope.range.to.getTime(),
-              timeformat: time_format(scope.panel.interval),
-              label: "Datetime",
-              ticks: elem.width()/100
-            },
-            grid: {
-              backgroundColor: null,
-              borderWidth: 0,
-              hoverable: true,
-              color: '#c8c8c8'
-            }
-          };
-
-          if(scope.panel.annotate.enable) {
-            options.events = {
-              levels: 1,
-              data: scope.annotations,
-              types: {
-                'annotation': {
-                  level: 1,
-                  icon: {
-                    icon: "icon-tag icon-flip-vertical",
-                    size: 20,
-                    color: "#222",
-                    outline: "#bbb"
-                  }
-                }
-              }
-              //xaxis: int    // the x axis to attach events to
-            };
-          }
-
-          if(scope.panel.interactive) {
-            options.selection = { mode: "x", color: '#666' };
-          }
-
-          // when rendering stacked bars, we need to ensure each point that has data is zero-filled
-          // so that the stacking happens in the proper order
-          var required_times = [];
-          if (data.length > 1) {
-            required_times = Array.prototype.concat.apply([], _.map(data, function (query) {
-              return query.time_series.getOrderedTimes();
-            }));
-            required_times = _.uniq(required_times.sort(function (a, b) {
-              // decending numeric sort
-              return a-b;
-            }), true);
-          }
-
-          for (var i = 0; i < data.length; i++) {
-            var _d = data[i].time_series.getFlotPairs(required_times, scope.panel.nullPointMode);
-            data[i].yaxis = data[i].info.yaxis;
-            data[i].data = _d;
-            data[i].info.y_format = data[i].yaxis === 1 ? scope.panel.y_format : scope.panel.y2_format;
-          }
-
-          configureAxisOptions(data, options);
-
-          plot = $.plot(elem, data, options);
-
-          if (scope.panel.leftYAxisLabel) {
-            elem.css('margin-left', '10px');
-            var yaxisLabel = $("<div class='axisLabel yaxisLabel'></div>")
-              .text(scope.panel.leftYAxisLabel)
-              .appendTo(elem);
-
-            yaxisLabel.css("margin-top", yaxisLabel.width() / 2 - 20);
-          } else if (elem.css('margin-left')) {
-            elem.css('margin-left', '');
-          }
-        }
-
-        function configureAxisOptions(data, options)
-        {
-          var defaults = {
-            position: 'left',
-            show: scope.panel['y-axis'],
-            min: scope.panel.grid.min,
-            max: scope.panel.percentage && scope.panel.stack ? 100 : scope.panel.grid.max
-          };
-
-          options.yaxes.push(defaults);
-
-          if (_.findWhere(data, {yaxis: 2})) {
-            var secondY = _.clone(defaults);
-            secondY.position = 'right';
-            options.yaxes.push(secondY);
-            configureAxisMode(options.yaxes[1], scope.panel.y2_format);
-          }
-
-          configureAxisMode(options.yaxes[0], scope.panel.y_format);
-        }
-
-        function configureAxisMode(axis, format) {
-          if (format === 'bytes') {
-            axis.mode = "byte";
-          }
-          if (format === 'short') {
-            axis.tickFormatter = function(val) {
-              return kbn.shortFormat(val,0);
-            };
-          }
-          if (format === 'ms') {
-            axis.tickFormatter = kbn.msFormat;
-          }
-        }
-
-        function time_format(interval) {
-          var _int = kbn.interval_to_seconds(interval);
-          if(_int >= 2628000) {
-            return "%Y-%m";
-          }
-          if(_int >= 10000) {
-            return "%Y-%m-%d";
-          }
-          if(_int >= 60) {
-            return "%H:%M<br>%m-%d";
-          }
-
-          return "%H:%M:%S";
-        }
-
-        var $tooltip = $('<div>');
-
-        elem.bind("plothover", function (event, pos, item) {
-          var group, value, timestamp;
-          if (item) {
-            if (item.series.info.alias || scope.panel.tooltip.query_as_alias) {
-              group = '<small style="font-size:0.9em;">' +
-                '<i class="icon-circle" style="color:'+item.series.color+';"></i>' + ' ' +
-                (item.series.info.alias || item.series.info.query)+
-              '</small><br>';
-            } else {
-              group = kbn.query_color_dot(item.series.color, 15) + ' ';
-            }
-            value = (scope.panel.stack && scope.panel.tooltip.value_type === 'individual') ?
-              item.datapoint[1] - item.datapoint[2] :
-              item.datapoint[1];
-            if(item.series.info.y_format === 'bytes') {
-              value = kbn.byteFormat(value,2);
-            }
-            if(item.series.info.y_format === 'short') {
-              value = kbn.shortFormat(value,2);
-            }
-            if(item.series.info.y_format === 'ms') {
-              value = kbn.msFormat(value);
-            }
-            timestamp = scope.panel.timezone === 'browser' ?
-              moment(item.datapoint[0]).format('YYYY-MM-DD HH:mm:ss') :
-              moment.utc(item.datapoint[0]).format('YYYY-MM-DD HH:mm:ss');
-            $tooltip
-              .html(
-                group + value + " @ " + timestamp
-              )
-              .place_tt(pos.pageX, pos.pageY);
-          } else {
-            $tooltip.detach();
-          }
-        });
-
-        elem.bind("plotselected", function (event, ranges) {
-          filterSrv.setTime({
-            from  : moment.utc(ranges.xaxis.from).toDate(),
-            to    : moment.utc(ranges.xaxis.to).toDate(),
-          });
-        });
-      }
-    };
-  });
 
 });
 

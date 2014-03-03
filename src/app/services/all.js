@@ -4,7 +4,8 @@ define([
   './filterSrv',
   './timer',
   './panelMove',
-  './graphite/graphiteSrv',
+  './datasourceSrv',
   './keyboardManager',
+  './annotationsSrv',
 ],
 function () {});

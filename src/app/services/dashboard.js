@@ -21,12 +21,14 @@ function (angular, $, kbn, _, config, moment, Modernizr) {
 
     var _dash = {
       title: "",
+      tags: [],
       style: "dark",
+      timezone: 'browser',
       editable: true,
       failover: false,
       panel_hints: true,
       rows: [],
-      pulldowns: [ { type: 'filtering' } ],
+      pulldowns: [ { type: 'templating' },  { type: 'annotations' } ],
       nav: [ { type: 'timepicker' } ],
       services: {},
       loader: {
@@ -47,13 +49,12 @@ function (angular, $, kbn, _, config, moment, Modernizr) {
     };
 
     // An elasticJS client to use
-    var ejs = ejsResource(config.elasticsearch);
+    var ejs = ejsResource(config.elasticsearch, config.elasticsearchBasicAuth);
     var gist_pattern = /(^\d{5,}$)|(^[a-z0-9]{10,}$)|(gist.github.com(\/*.*)\/[a-z0-9]{5,}\/*$)/;
 
     // Store a reference to this
     var self = this;
     var filterSrv;
-    var graphiteSrv;
 
     this.current = _.clone(_dash);
     this.last = {};
@@ -101,8 +102,8 @@ function (angular, $, kbn, _, config, moment, Modernizr) {
             $location.path(config.default_route);
             alertSrv.set('Saving to browser storage has been replaced',' with saving to Elasticsearch.'+
               ' Click <a href="#/dashboard/local/deprecated">here</a> to load your old dashboard anyway.');
-          } else if(!(_.isUndefined(window.localStorage.kibanaDashboardDefault))) {
-            $location.path(window.localStorage.kibanaDashboardDefault);
+          } else if(!(_.isUndefined(window.localStorage.grafanaDashboardDefault))) {
+            $location.path(window.localStorage.grafanaDashboardDefault);
           } else {
             $location.path(config.default_route);
           }
@@ -118,15 +119,23 @@ function (angular, $, kbn, _, config, moment, Modernizr) {
     };
 
     var dash_defaults = function(dashboard) {
-      _.defaults(dashboard,_dash);
+
+      _.defaults(dashboard, _dash);
       _.defaults(dashboard.loader,_dash.loader);
 
       var filtering = _.findWhere(dashboard.pulldowns, {type: 'filtering'});
       if (!filtering) {
         dashboard.pulldowns.push({
           type: 'filtering',
-          enable: false,
-          collapse: true
+          enable: false
+        });
+      }
+
+      var annotations = _.findWhere(dashboard.pulldowns, {type: 'annotations'});
+      if (!annotations) {
+        dashboard.pulldowns.push({
+          type: 'annotations',
+          enable: false
         });
       }
 
@@ -137,17 +146,19 @@ function (angular, $, kbn, _, config, moment, Modernizr) {
       // Cancel all timers
       timer.cancel_all();
 
+      // reset fullscreen flag
+      $rootScope.fullscreen = false;
+
       // Make sure the dashboard being loaded has everything required
       dashboard = dash_defaults(dashboard);
 
       // Set the current dashboard
-      self.current = _.clone(dashboard);
+      self.current = angular.copy(dashboard);
 
       // Delay this until we're sure that querySrv and filterSrv are ready
       $timeout(function() {
         // Ok, now that we've setup the current dashboard, we can inject our services
         filterSrv = $injector.get('filterSrv');
-        graphiteSrv = $injector.get('graphiteSrv');
         filterSrv.init();
 
       },0).then(function() {
@@ -165,6 +176,8 @@ function (angular, $, kbn, _, config, moment, Modernizr) {
 
       // Take out any that we're not allowed to add from the gui.
       self.availablePanels = _.difference(self.availablePanels,config.hidden_panels);
+
+      $rootScope.$emit('dashboard-loaded');
 
       return true;
     };
@@ -196,7 +209,7 @@ function (angular, $, kbn, _, config, moment, Modernizr) {
         if(!_.isUndefined(window.localStorage['dashboard'])) {
           delete window.localStorage['dashboard'];
         }
-        window.localStorage.kibanaDashboardDefault = route;
+        window.localStorage.grafanaDashboardDefault = route;
         return true;
       } else {
         return false;
@@ -210,7 +223,7 @@ function (angular, $, kbn, _, config, moment, Modernizr) {
 
           delete window.localStorage['dashboard'];
         }
-        delete window.localStorage.kibanaDashboardDefault;
+        delete window.localStorage.grafanaDashboardDefault;
         return true;
       } else {
         return false;
@@ -286,13 +299,21 @@ function (angular, $, kbn, _, config, moment, Modernizr) {
     };
 
     this.elasticsearch_load = function(type,id) {
-      return $http({
+      var options = {
         url: config.elasticsearch + "/" + config.grafana_index + "/"+type+"/"+id+'?' + new Date().getTime(),
         method: "GET",
         transformResponse: function(response) {
           return renderTemplate(angular.fromJson(response)._source.dashboard, $routeParams);
         }
-      }).error(function(data, status) {
+      };
+      if (config.elasticsearchBasicAuth) {
+        options.withCredentials = true;
+        options.headers = {
+          "Authorization": "Basic " + config.elasticsearchBasicAuth
+        };
+      }
+      return $http(options)
+      .error(function(data, status) {
         if(status === 0) {
           alertSrv.set('Error',"Could not contact Elasticsearch at "+config.elasticsearch+
             ". Please ensure that Elasticsearch is reachable from your system." ,'error');
@@ -344,6 +365,7 @@ function (angular, $, kbn, _, config, moment, Modernizr) {
         user: 'guest',
         group: 'guest',
         title: save.title,
+        tags: save.tags,
         dashboard: angular.toJson(save)
       });
 
@@ -375,22 +397,6 @@ function (angular, $, kbn, _, config, moment, Modernizr) {
           return false;
         }
       );
-    };
-
-    this.elasticsearch_list = function(query,count) {
-      var request = ejs.Request().indices(config.grafana_index).types('dashboard');
-      return request.query(
-        ejs.QueryStringQuery(query || '*')
-        ).size(count).doSearch(
-          // Success
-          function(result) {
-            return result;
-          },
-          // Failure
-          function() {
-            return false;
-          }
-        );
     };
 
     this.save_gist = function(title,dashboard) {

@@ -1,5 +1,5 @@
 define([
-  'app/services/graphite/gfunc'
+  'services/graphite/gfunc'
 ], function(gfunc) {
 
   describe('when creating func instance from func names', function() {
@@ -60,7 +60,7 @@ define([
 
     it('should return function categories', function() {
       var catIndex = gfunc.getCategories();
-      expect(catIndex.Special.length).to.equal(8);
+      expect(catIndex.Special.length).to.be.greaterThan(8);
     });
 
   });
