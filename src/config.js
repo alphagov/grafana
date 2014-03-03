@@ -9,16 +9,37 @@ function (Settings) {
 
   return new Settings({
 
+    /**
+     * elasticsearch url:
+     * For Basic authentication use: http://username:password@domain.com:9200
+     */
     elasticsearch: "http://"+window.location.hostname+":9200",
 
     /**
+     * graphite-web url:
      * For Basic authentication use: http://username:password@domain.com
-     * Basic authentication requires special nginx or apache2 headers for cross origin comain to work
+     * Basic authentication requires special HTTP headers to be configured
+     * in nginx or apache for cross origin domain sharing to work (CORS).
      * Check install documentation on github
      */
     graphiteUrl: "https://graphite.production.alphagov.co.uk/",
 
+    /**
+     * Multiple graphite servers? Comment out graphiteUrl and replace with
+     *
+     *  datasources: {
+     *    data_center_us: { type: 'graphite',  url: 'http://<graphite_url>',  default: true },
+     *    data_center_eu: { type: 'graphite',  url: 'http://<graphite_url>' }
+     *  }
+     */
+
     default_route: '/dashboard/file/default.json',
+
+    /**
+     * If your graphite server has another timezone than you & users browsers specify the offset here
+     * Example: "-0500" (for UTC - 5 hours)
+     */
+    timezoneOffset: null,
 
     grafana_index: "grafana-dash",
 
