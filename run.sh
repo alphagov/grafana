@@ -7,8 +7,8 @@ trap "kill 0" SIGINT SIGTERM EXIT
 sleep 2
 
 cd app/dashboards/
-for i in $(ls -1 *.json | grep -v default); do
-  open http://localhost:8000/#/dashboard/file/${i}
+for dashboard in $(ls *.json | grep -v -e default -e empty ); do
+  open http://localhost:8000/#/dashboard/file/${dashboard}
 done
 
 wait $PID
