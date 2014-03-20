@@ -22,7 +22,7 @@ function (Settings) {
      * in nginx or apache for cross origin domain sharing to work (CORS).
      * Check install documentation on github
      */
-    graphiteUrl: "https://graphite.production.alphagov.co.uk/",
+    graphiteUrl: "https://graphite.p1production.alphagov.co.uk/",
 
     /**
      * Multiple graphite servers? Comment out graphiteUrl and replace with
